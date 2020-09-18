@@ -1,8 +1,10 @@
 package com.example.repository
 
+import com.example.models.Todo
 import com.example.models.User
 import com.example.repository.DatabaseFactory.dbQuery
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.statements.InsertStatement
@@ -31,6 +33,26 @@ class TodoRepository: Repository {
             .map { rowToUser(it) }.singleOrNull()
     }
 
+    override suspend fun addTodo(userId: Int, todo: String, done: Boolean): Todo? {
+        var statement : InsertStatement<Number>? = null
+        dbQuery {
+            statement = Todos.insert {
+                it[Todos.userId] = userId
+                it[Todos.todo] = todo
+                it[Todos.done] = done
+            }
+        }
+        return rowToTodo(statement?.resultedValues?.get(0))
+    }
+
+    override suspend fun getTodos(userId: Int): List<Todo> {
+        return dbQuery {
+            Todos.select {
+                Todos.userId.eq((userId))
+            }.mapNotNull { rowToTodo(it) }
+        }
+    }
+
     private fun rowToUser(row: ResultRow?): User? {
         if (row == null) return null
         return User(
@@ -38,6 +60,16 @@ class TodoRepository: Repository {
             email = row[Users.email],
             displayName = row[Users.displayName],
             passwordHash = row[Users.passwordHash]
+        )
+    }
+
+    private fun rowToTodo(row: ResultRow?): Todo? {
+        if (row == null) return null
+        return Todo(
+            id = row[Todos.id],
+            userId = row[Todos.userId],
+            todo = row[Todos.todo],
+            done = row[Todos.done]
         )
     }
 }
